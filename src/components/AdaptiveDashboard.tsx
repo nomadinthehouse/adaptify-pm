@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { UserProfile } from '@/types/user';
+import { UserProfile } from '@/types/pmNavigator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,6 @@ import {
   BookOpen,
   Award
 } from 'lucide-react';
-import FiveWhysAnalysis from '@/components/frameworks/FiveWhysAnalysis';
 
 interface AdaptiveDashboardProps {
   userProfile: UserProfile | null;
@@ -35,15 +34,6 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
     );
   }
 
-  if (activeFramework === '5-whys') {
-    return (
-      <FiveWhysAnalysis 
-        userProfile={userProfile} 
-        onBack={() => setActiveFramework(null)} 
-      />
-    );
-  }
-
   const recommendedFrameworks = getRecommendedFrameworks(userProfile);
   const scaffoldingLevel = getScaffoldingLevel(userProfile);
 
@@ -56,8 +46,8 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
     }
   };
 
-  const confidenceAverages = Object.values(userProfile.confidenceAreas).reduce((a, b) => a + b, 0) / 
-                           Object.values(userProfile.confidenceAreas).length;
+  const confidenceAverages = Object.values(userProfile.confidence_areas).reduce((a, b) => a + b, 0) / 
+                           Object.values(userProfile.confidence_areas).length;
 
   const frameworkData = [
     {
@@ -104,11 +94,11 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
               </p>
             </div>
             <div className="flex items-center space-x-3">
-              <Badge className={`${getExperienceBadgeColor(userProfile.experienceLevel)} border-0`}>
-                {userProfile.experienceLevel.charAt(0).toUpperCase() + userProfile.experienceLevel.slice(1)} PM
+              <Badge className={`${getExperienceBadgeColor(userProfile.experience_level)} border-0`}>
+                {userProfile.experience_level.charAt(0).toUpperCase() + userProfile.experience_level.slice(1)} PM
               </Badge>
               <span className="text-sm text-gray-500">
-                {userProfile.yearsOfExperience} years experience
+                {userProfile.years_of_experience} years experience
               </span>
             </div>
           </div>
@@ -179,7 +169,7 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
                     })}
                 </div>
                 
-                {userProfile.experienceLevel === 'novice' && (
+                {userProfile.experience_level === 'novice' && (
                   <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-start space-x-2">
                       <BookOpen className="w-4 h-4 text-blue-600 mt-0.5" />
@@ -209,14 +199,13 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
                   {frameworkData.map((framework) => {
                     const Icon = framework.icon;
                     const isRecommended = recommendedFrameworks.includes(framework.id);
-                    const isCompleted = userProfile.completedFrameworks.includes(framework.id);
                     
                     return (
                       <div 
                         key={framework.id}
                         className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer group ${
                           isRecommended ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                        } ${isCompleted ? 'opacity-75' : ''} hover:shadow-md`}
+                        } hover:shadow-md`}
                         onClick={() => setActiveFramework(framework.id)}
                       >
                         <div className="flex items-start space-x-3">
@@ -234,9 +223,6 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
                                 <Badge className="text-xs bg-yellow-100 text-yellow-800 border-0">
                                   Recommended
                                 </Badge>
-                              )}
-                              {isCompleted && (
-                                <Award className="w-4 h-4 text-green-600" />
                               )}
                             </div>
                             <p className="text-sm text-gray-600 mt-1">
@@ -274,7 +260,7 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
                 
                 <div className="space-y-2">
                   <h4 className="font-medium text-gray-900">Confidence Areas</h4>
-                  {Object.entries(userProfile.confidenceAreas).map(([key, value]) => {
+                  {Object.entries(userProfile.confidence_areas).map(([key, value]) => {
                     const labels = {
                       problemAnalysis: 'Problem Analysis',
                       metricsDesign: 'Metrics Design',
@@ -297,8 +283,8 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
 
                 <div className="pt-2 border-t">
                   <div className="text-sm text-gray-600">
-                    <p><strong>Company:</strong> {userProfile.companySize} {userProfile.industry}</p>
-                    <p><strong>Learning Style:</strong> {userProfile.learningStyle.join(', ')}</p>
+                    <p><strong>Company:</strong> {userProfile.company_size} {userProfile.industry}</p>
+                    <p><strong>Learning Style:</strong> {userProfile.learning_styles.join(', ')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -317,36 +303,17 @@ const AdaptiveDashboard = ({ userProfile }: AdaptiveDashboardProps) => {
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium">Frameworks Completed</span>
-                      <span className="text-sm text-gray-600">
-                        {userProfile.completedFrameworks.length}/10
-                      </span>
+                      <span className="text-sm text-gray-600">0/10</span>
                     </div>
-                    <Progress 
-                      value={(userProfile.completedFrameworks.length / 10) * 100} 
-                      className="h-2" 
-                    />
+                    <Progress value={0} className="h-2" />
                   </div>
                   
-                  {userProfile.completedFrameworks.length === 0 ? (
-                    <div className="text-center py-6">
-                      <Target className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">
-                        Start your first framework to begin tracking progress
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-gray-900">Recent Achievements</h4>
-                      {userProfile.skillProgressions.slice(-3).map((progression, index) => (
-                        <div key={index} className="flex items-center space-x-2 text-sm">
-                          <Award className="w-4 h-4 text-green-600" />
-                          <span className="text-gray-600">
-                            Completed {progression.framework}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="text-center py-6">
+                    <Target className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">
+                      Start your first framework to begin tracking progress
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

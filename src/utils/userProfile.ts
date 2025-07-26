@@ -12,17 +12,35 @@ export const getUserProfile = (): UserProfile | null => {
 
 export const saveUserProfile = async (profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>): Promise<UserProfile | null> => {
   try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('No authenticated user');
+    }
+
+    // Prepare profile data with user_id
+    const profileData = {
+      ...profile,
+      user_id: user.id
+    };
+
     // Save to Supabase
     const { data, error } = await supabase
       .from('user_profiles')
-      .upsert([profile])
+      .upsert([profileData])
       .select()
       .single();
 
     if (error) {
       console.error('Error saving profile to Supabase:', error);
       // Fallback to localStorage
-      const profileWithId = { ...profile, id: Date.now().toString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      const profileWithId = { 
+        ...profile, 
+        id: Date.now().toString(), 
+        user_id: user.id,
+        created_at: new Date().toISOString(), 
+        updated_at: new Date().toISOString() 
+      };
       localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profileWithId));
       localStorage.setItem(ONBOARDING_KEY, 'true');
       return profileWithId;
@@ -36,7 +54,13 @@ export const saveUserProfile = async (profile: Omit<UserProfile, 'id' | 'created
   } catch (error) {
     console.error('Error saving profile:', error);
     // Fallback to localStorage
-    const profileWithId = { ...profile, id: Date.now().toString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const profileWithId = { 
+      ...profile, 
+      id: Date.now().toString(), 
+      user_id: 'temp-user-id',
+      created_at: new Date().toISOString(), 
+      updated_at: new Date().toISOString() 
+    };
     localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profileWithId));
     localStorage.setItem(ONBOARDING_KEY, 'true');
     return profileWithId;
