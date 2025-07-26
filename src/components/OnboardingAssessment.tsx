@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserProfile, LearningStyle, IndustryType, CompanySize } from '@/types/user';
+import { UserProfile, CompanySize } from '@/types/pmNavigator';
 import { saveUserProfile, calculateExperienceLevel } from '@/utils/userProfile';
 import { ArrowRight, Target, Users, TrendingUp, Search, MessageSquare } from 'lucide-react';
 
@@ -23,8 +23,8 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
     yearsOfExperience: 0,
     currentRole: '',
     companySize: '' as CompanySize,
-    industry: '' as IndustryType,
-    learningStyle: [] as LearningStyle[],
+    industry: '',
+    learningStyles: [] as string[],
     confidenceAreas: {
       problemAnalysis: 3,
       metricsDesign: 3,
@@ -37,31 +37,29 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
   const handleNext = () => setStep(step + 1);
   const handlePrev = () => setStep(step - 1);
 
-  const handleLearningStyleChange = (style: LearningStyle, checked: boolean) => {
+  const handleLearningStyleChange = (style: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
-      learningStyle: checked 
-        ? [...prev.learningStyle, style]
-        : prev.learningStyle.filter(s => s !== style)
+      learningStyles: checked 
+        ? [...prev.learningStyles, style]
+        : prev.learningStyles.filter(s => s !== style)
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const experienceLevel = calculateExperienceLevel(formData.yearsOfExperience);
     
-    const profile: UserProfile = {
-      id: Date.now().toString(),
+    const profileData = {
+      user_id: 'anonymous_' + Date.now(), // In real app, this would be auth.uid()
       name: formData.name,
       email: formData.email,
-      experienceLevel,
-      yearsOfExperience: formData.yearsOfExperience,
-      currentRole: formData.currentRole,
-      companySize: formData.companySize,
+      experience_level: experienceLevel,
+      years_of_experience: formData.yearsOfExperience,
+      current_role: formData.currentRole,
+      company_size: formData.companySize,
       industry: formData.industry,
-      learningStyle: formData.learningStyle,
-      confidenceAreas: formData.confidenceAreas,
-      completedFrameworks: [],
-      skillProgressions: [],
+      learning_styles: formData.learningStyles,
+      confidence_areas: formData.confidenceAreas,
       preferences: {
         scaffoldingLevel: experienceLevel === 'novice' ? 3 : experienceLevel === 'intermediate' ? 2 : 1,
         helpVisibility: experienceLevel === 'novice',
@@ -69,8 +67,10 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
       }
     };
 
-    saveUserProfile(profile);
-    onComplete(profile);
+    const profile = await saveUserProfile(profileData);
+    if (profile) {
+      onComplete(profile);
+    }
   };
 
   const confidenceIcons = {
@@ -109,10 +109,10 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
         <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Welcome to PM First Principles
+              Welcome to PM Navigator
             </CardTitle>
             <CardDescription className="text-lg">
-              Let's personalize your learning experience
+              Your First Principles Product Management Copilot
             </CardDescription>
           </CardHeader>
 
@@ -194,7 +194,7 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
                   </div>
                   <div>
                     <Label>Industry</Label>
-                    <Select value={formData.industry} onValueChange={(value: IndustryType) => setFormData({...formData, industry: value})}>
+                    <Select value={formData.industry} onValueChange={(value: string) => setFormData({...formData, industry: value})}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Select your industry" />
                       </SelectTrigger>
@@ -227,8 +227,8 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
                       <div key={style.id} className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors">
                         <Checkbox
                           id={style.id}
-                          checked={formData.learningStyle.includes(style.id as LearningStyle)}
-                          onCheckedChange={(checked) => handleLearningStyleChange(style.id as LearningStyle, checked as boolean)}
+                          checked={formData.learningStyles.includes(style.id)}
+                          onCheckedChange={(checked) => handleLearningStyleChange(style.id, checked as boolean)}
                         />
                         <div className="flex-1">
                           <Label htmlFor={style.id} className="font-medium cursor-pointer">{style.label}</Label>
@@ -305,7 +305,7 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
                 <Button 
                   onClick={handleSubmit}
                   className="ml-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                  disabled={formData.learningStyle.length === 0}
+                  disabled={formData.learningStyles.length === 0}
                 >
                   Complete Setup
                 </Button>

@@ -1,17 +1,46 @@
 
-import { UserProfile, ExperienceLevel } from '@/types/user';
+import { UserProfile, ExperienceLevel } from '@/types/pmNavigator';
+import { supabase } from '@/integrations/supabase/client';
 
-const USER_PROFILE_KEY = 'pm_first_principles_profile';
-const ONBOARDING_KEY = 'pm_first_principles_onboarded';
+const USER_PROFILE_KEY = 'pm_navigator_profile';
+const ONBOARDING_KEY = 'pm_navigator_onboarded';
 
 export const getUserProfile = (): UserProfile | null => {
   const stored = localStorage.getItem(USER_PROFILE_KEY);
   return stored ? JSON.parse(stored) : null;
 };
 
-export const saveUserProfile = (profile: UserProfile): void => {
-  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profile));
-  localStorage.setItem(ONBOARDING_KEY, 'true');
+export const saveUserProfile = async (profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>): Promise<UserProfile | null> => {
+  try {
+    // Save to Supabase
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .upsert([profile])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error saving profile to Supabase:', error);
+      // Fallback to localStorage
+      const profileWithId = { ...profile, id: Date.now().toString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profileWithId));
+      localStorage.setItem(ONBOARDING_KEY, 'true');
+      return profileWithId;
+    }
+
+    // Also save to localStorage for offline access
+    localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data));
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    
+    return data;
+  } catch (error) {
+    console.error('Error saving profile:', error);
+    // Fallback to localStorage
+    const profileWithId = { ...profile, id: Date.now().toString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profileWithId));
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    return profileWithId;
+  }
 };
 
 export const hasCompletedOnboarding = (): boolean => {
@@ -25,21 +54,28 @@ export const calculateExperienceLevel = (yearsOfExperience: number): ExperienceL
 };
 
 export const getScaffoldingLevel = (profile: UserProfile): number => {
-  const baseLevel = profile.experienceLevel === 'novice' ? 3 : 
-                   profile.experienceLevel === 'intermediate' ? 2 : 1;
+  const baseLevel = profile.experience_level === 'novice' ? 3 : 
+                   profile.experience_level === 'intermediate' ? 2 : 1;
   
   // Adjust based on confidence areas
-  const avgConfidence = Object.values(profile.confidenceAreas).reduce((a, b) => a + b, 0) / 
-                       Object.values(profile.confidenceAreas).length;
+  const confidenceValues = Object.values(profile.confidence_areas);
+  if (confidenceValues.length === 0) return baseLevel;
+  
+  const avgConfidence = confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length;
   
   return Math.max(1, baseLevel - Math.floor(avgConfidence / 3));
 };
 
 export const getRecommendedFrameworks = (profile: UserProfile): string[] => {
-  const { experienceLevel, completedFrameworks, confidenceAreas } = profile;
+  const { experience_level, confidence_areas } = profile;
   
-  // Find lowest confidence areas for targeted improvement
-  const lowestConfidenceArea = Object.entries(confidenceAreas)
+  // Find lowest confidence area for targeted improvement
+  const confidenceEntries = Object.entries(confidence_areas);
+  if (confidenceEntries.length === 0) {
+    return getDefaultFrameworks(experience_level);
+  }
+  
+  const lowestConfidenceArea = confidenceEntries
     .sort(([,a], [,b]) => a - b)[0][0];
   
   const frameworkMap: Record<string, string[]> = {
@@ -57,9 +93,17 @@ export const getRecommendedFrameworks = (profile: UserProfile): string[] => {
   };
   
   const targetFrameworks = frameworkMap[lowestConfidenceArea] || [];
-  const levelFrameworks = recommendedForLevel[experienceLevel];
+  const levelFrameworks = recommendedForLevel[experience_level];
   
-  return [...new Set([...targetFrameworks, ...levelFrameworks])]
-    .filter(framework => !completedFrameworks.includes(framework))
-    .slice(0, 3);
+  return [...new Set([...targetFrameworks, ...levelFrameworks])].slice(0, 3);
+};
+
+const getDefaultFrameworks = (experienceLevel: ExperienceLevel): string[] => {
+  const defaultFrameworks = {
+    novice: ['problem-definition', '5-whys', 'user-journey-mapping'],
+    intermediate: ['jobs-to-be-done', 'north-star-metric', 'stakeholder-mapping'],
+    senior: ['blue-ocean', 'competitive-analysis', 'okr-design']
+  };
+  
+  return defaultFrameworks[experienceLevel];
 };
