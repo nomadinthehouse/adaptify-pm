@@ -24,8 +24,8 @@ export const saveUserProfile = async (profile: Omit<UserProfile, 'id' | 'created
       user_id: user.id
     };
 
-    // Save to Supabase
-    const { data, error } = await supabase
+    // Save to Supabase - cast to any to work around TypeScript issues with generated types
+    const { data, error } = await (supabase as any)
       .from('user_profiles')
       .upsert([profileData])
       .select()
