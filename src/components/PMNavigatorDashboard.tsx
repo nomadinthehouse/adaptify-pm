@@ -119,7 +119,7 @@ const PMNavigatorDashboard = ({
             <div className="flex items-center justify-center space-x-4">
               <span className="text-gray-700">Welcome back, {userProfile.name}</span>
               <Badge variant="secondary">{userProfile.experience_level}</Badge>
-              <Badge variant="outline">{userProfile.current_role}</Badge>
+              <Badge variant="outline">{userProfile.role_title}</Badge>
             </div>
           )}
         </div>

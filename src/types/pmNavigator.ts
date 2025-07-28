@@ -16,14 +16,14 @@ export interface UserProfile {
   email: string;
   experience_level: ExperienceLevel;
   years_of_experience: number;
-  current_role: string;
+  role_title: string;
   company_size: CompanySize;
   industry: string;
   learning_styles: string[];
   confidence_areas: Record<string, number>;
   preferences: Record<string, any>;
-  created_at: string;
-  updated_at: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface Problem {

@@ -78,3 +78,36 @@ export const hasCompletedOnboarding = async (): Promise<boolean> => {
     return false;
   }
 };
+
+export const calculateExperienceLevel = (years: number): string => {
+  if (years < 2) return 'novice';
+  if (years < 5) return 'intermediate';
+  return 'senior';
+};
+
+export const getRecommendedFrameworks = (profile: UserProfile): string[] => {
+  const recommendations = [];
+  
+  // Always recommend 5 Whys for problem analysis
+  if (profile.confidence_areas.problemAnalysis <= 3) {
+    recommendations.push('5-whys');
+  }
+  
+  // Recommend JTBD for strategy
+  if (profile.confidence_areas.strategicThinking <= 3 || profile.experience_level === 'novice') {
+    recommendations.push('jobs-to-be-done');
+  }
+  
+  // Recommend North Star for metrics
+  if (profile.confidence_areas.metricsDesign <= 3) {
+    recommendations.push('north-star-metric');
+  }
+  
+  return recommendations;
+};
+
+export const getScaffoldingLevel = (profile: UserProfile): 'minimal' | 'moderate' | 'extensive' => {
+  if (profile.experience_level === 'novice') return 'extensive';
+  if (profile.experience_level === 'intermediate') return 'moderate';
+  return 'minimal';
+};

@@ -4,7 +4,7 @@ import { Conversation, DatabaseConversation, ChatMessage } from '@/types/chat';
 
 export const conversationService = {
   async getConversations(): Promise<Conversation[]> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('conversations')
       .select('*')
       .order('updated_at', { ascending: false });
@@ -26,7 +26,7 @@ export const conversationService = {
   },
 
   async saveConversation(conversation: Conversation): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('conversations')
       .upsert({
         id: conversation.id,
@@ -47,7 +47,7 @@ export const conversationService = {
   },
 
   async deleteConversation(conversationId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('conversations')
       .delete()
       .eq('id', conversationId);

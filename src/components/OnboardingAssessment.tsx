@@ -21,7 +21,7 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
     name: '',
     email: '',
     years_of_experience: 0,
-    current_role: '',
+    role_title: '',
     company_size: '' as CompanySize,
     industry: '',
     learning_styles: [] as string[],
@@ -60,16 +60,17 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
       const experience_level = calculateExperienceLevel(formData.years_of_experience);
       
       const profileData = {
+        id: '',
         ...formData,
-        experience_level,
+        experience_level: experience_level as ExperienceLevel,
         user_id: '', // Will be set in saveUserProfile
-        preferences: {}
+        preferences: {},
+        created_at: new Date(),
+        updated_at: new Date()
       };
 
-      const savedProfile = await saveUserProfile(profileData);
-      if (savedProfile) {
-        onComplete(savedProfile);
-      }
+      await saveUserProfile(profileData);
+      onComplete(profileData);
     } catch (error) {
       console.error('Error saving profile:', error);
     }
@@ -111,8 +112,8 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
                 <Label htmlFor="role">Current Role</Label>
                 <Input
                   id="role"
-                  value={formData.current_role}
-                  onChange={(e) => setFormData(prev => ({...prev, current_role: e.target.value}))}
+                  value={formData.role_title}
+                  onChange={(e) => setFormData(prev => ({...prev, role_title: e.target.value}))}
                   placeholder="e.g., Product Manager, Senior PM, APM"
                 />
               </div>
@@ -260,7 +261,7 @@ const OnboardingAssessment = ({ onComplete }: OnboardingAssessmentProps) => {
   const canProceed = () => {
     switch (step) {
       case 1:
-        return formData.name && formData.email && formData.current_role;
+        return formData.name && formData.email && formData.role_title;
       case 2:
         return formData.company_size && formData.industry;
       case 3:

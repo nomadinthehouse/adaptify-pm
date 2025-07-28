@@ -58,7 +58,7 @@ const ConversationSidebar = ({
           </div>
           <div>
             <p className="font-medium text-sm text-gray-900">{userProfile?.name || 'User'}</p>
-            <p className="text-xs text-gray-500">{userProfile?.current_role || 'Product Manager'}</p>
+            <p className="text-xs text-gray-500">{userProfile?.role_title || 'Product Manager'}</p>
           </div>
         </div>
       </div>
