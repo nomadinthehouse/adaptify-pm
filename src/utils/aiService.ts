@@ -1,15 +1,7 @@
 
-import OpenAI from 'openai';
 import { ChatMessage, ExpertQuote } from '@/types/chat';
 import { PM_FRAMEWORKS, EXPERT_QUOTES } from '@/data/pmFrameworks';
-
-// This would typically be an environment variable
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true // Only for development
-});
+import { supabase } from '@/integrations/supabase/client';
 
 interface AIResponse {
   content: string;
@@ -17,77 +9,27 @@ interface AIResponse {
   expertQuote?: ExpertQuote;
 }
 
-const PRODUCT_MANAGEMENT_CONTEXT = `
-You are ProdMentor, an AI assistant specialized exclusively in product management topics. 
-
-IMPORTANT RULES:
-1. ONLY answer product management related questions
-2. If asked about non-PM topics, politely decline: "Sorry, I can only help with product management topics."
-3. Always reference relevant PM frameworks in your responses
-4. Include expert quotes when appropriate
-5. Provide practical, actionable advice
-6. Ask clarifying questions to better understand the context
-7. Break down complex problems into manageable steps
-
-Available PM Frameworks: ${PM_FRAMEWORKS.map(f => f.name).join(', ')}
-
-Expert Sources: Marty Cagan, Teresa Torres, Shreyas Doshi, Julie Zhuo, Christina Wodtke, Clayton Christensen, Sean Ellis
-
-Your responses should be:
-- Practical and actionable
-- Framework-driven
-- Backed by expert wisdom
-- Focused on solving real PM challenges
-- Conversational but professional
-`;
-
 export const generateAIResponse = async (
   userMessage: string,
   conversationHistory: ChatMessage[] = []
 ): Promise<AIResponse> => {
   try {
-    // Check if the question is product management related
-    const isProductManagementQuery = await checkIfProductManagementQuery(userMessage);
-    
-    if (!isProductManagementQuery) {
-      return {
-        content: "Sorry, I can only help with product management topics. Please ask me about product strategy, prioritization, user research, metrics, roadmapping, or any other PM-related questions!",
-      };
-    }
-
-    // Build conversation context
-    const messages = [
-      { role: 'system' as const, content: PRODUCT_MANAGEMENT_CONTEXT },
-      ...conversationHistory.slice(-10).map(msg => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content
-      })),
-      { role: 'user' as const, content: userMessage }
-    ];
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages,
-      max_tokens: 1000,
-      temperature: 0.7,
+    const { data, error } = await supabase.functions.invoke('chat-ai', {
+      body: {
+        userMessage,
+        conversationHistory
+      }
     });
 
-    const content = response.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
-    
-    // Extract frameworks mentioned in the response
-    const frameworks = extractFrameworks(content);
-    
-    // Select relevant expert quote
-    const expertQuote = selectRelevantExpertQuote(userMessage, content);
+    if (error) {
+      console.error('Error calling chat-ai function:', error);
+      throw new Error('Failed to generate AI response');
+    }
 
-    return {
-      content,
-      frameworks,
-      expertQuote
-    };
+    return data;
   } catch (error) {
     console.error('Error generating AI response:', error);
-    throw new Error('Failed to generate AI response');
+    throw new Error('Failed to generate AI response. Please check your API key configuration.');
   }
 };
 

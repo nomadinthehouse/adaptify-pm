@@ -5,7 +5,10 @@ import { UserProfile } from '@/types/pmNavigator';
 import ChatInterface from './ChatInterface';
 import ConversationSidebar from './ConversationSidebar';
 import { generateAIResponse } from '@/utils/aiService';
+import { conversationService } from '@/services/conversationService';
+import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ProdMentorProps {
   userProfile: UserProfile;
@@ -16,27 +19,72 @@ const ProdMentor = ({ userProfile, onLogout }: ProdMentorProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const { toast } = useToast();
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
-  const createNewConversation = (): Conversation => {
+  // Load conversations on component mount
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
+  const loadConversations = async () => {
+    try {
+      setIsLoadingConversations(true);
+      const loadedConversations = await conversationService.getConversations();
+      setConversations(loadedConversations);
+      
+      // Set first conversation as active if exists
+      if (loadedConversations.length > 0 && !activeConversationId) {
+        setActiveConversationId(loadedConversations[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load conversations. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  const createNewConversation = async (): Promise<Conversation> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const newConversation: Conversation = {
       id: uuidv4(),
-      user_id: userProfile.user_id,
+      user_id: user.id,
       title: 'New Conversation',
       messages: [],
       created_at: new Date(),
       updated_at: new Date(),
     };
     
+    await conversationService.saveConversation(newConversation);
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
     
     return newConversation;
   };
 
-  const handleNewConversation = () => {
-    createNewConversation();
+  const handleNewConversation = async () => {
+    try {
+      await createNewConversation();
+    } catch (error) {
+      console.error('Error creating new conversation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create new conversation. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSelectConversation = (conversationId: string) => {
@@ -44,38 +92,46 @@ const ProdMentor = ({ userProfile, onLogout }: ProdMentorProps) => {
   };
 
   const handleSendMessage = async (content: string) => {
-    if (!activeConversationId) {
-      const newConv = createNewConversation();
-      setActiveConversationId(newConv.id);
-    }
-
-    const currentConvId = activeConversationId || conversations[0]?.id;
-    if (!currentConvId) return;
-
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: uuidv4(),
-      role: 'user',
-      content,
-      timestamp: new Date(),
-    };
-
-    setConversations(prev => prev.map(conv => 
-      conv.id === currentConvId 
-        ? { 
-            ...conv, 
-            messages: [...conv.messages, userMessage],
-            title: conv.messages.length === 0 ? content.slice(0, 50) + '...' : conv.title,
-            updated_at: new Date()
-          }
-        : conv
-    ));
-
-    // Generate AI response
-    setIsLoading(true);
     try {
-      const conversation = conversations.find(c => c.id === currentConvId);
-      const aiResponse = await generateAIResponse(content, conversation?.messages || []);
+      let currentConvId = activeConversationId;
+      
+      // Create new conversation if none exists
+      if (!currentConvId) {
+        const newConv = await createNewConversation();
+        currentConvId = newConv.id;
+      }
+
+      if (!currentConvId) return;
+
+      // Add user message
+      const userMessage: ChatMessage = {
+        id: uuidv4(),
+        role: 'user',
+        content,
+        timestamp: new Date(),
+      };
+
+      // Update conversation with user message
+      const updatedConversation = conversations.find(c => c.id === currentConvId);
+      if (!updatedConversation) return;
+
+      const conversationWithUserMessage = {
+        ...updatedConversation,
+        messages: [...updatedConversation.messages, userMessage],
+        title: updatedConversation.messages.length === 0 ? content.slice(0, 50) + '...' : updatedConversation.title,
+        updated_at: new Date()
+      };
+
+      setConversations(prev => prev.map(conv => 
+        conv.id === currentConvId ? conversationWithUserMessage : conv
+      ));
+
+      // Save to database
+      await conversationService.saveConversation(conversationWithUserMessage);
+
+      // Generate AI response
+      setIsLoading(true);
+      const aiResponse = await generateAIResponse(content, conversationWithUserMessage.messages);
       
       const assistantMessage: ChatMessage = {
         id: uuidv4(),
@@ -86,17 +142,21 @@ const ProdMentor = ({ userProfile, onLogout }: ProdMentorProps) => {
         expertQuote: aiResponse.expertQuote,
       };
 
+      const finalConversation = {
+        ...conversationWithUserMessage,
+        messages: [...conversationWithUserMessage.messages, assistantMessage],
+        updated_at: new Date()
+      };
+
       setConversations(prev => prev.map(conv => 
-        conv.id === currentConvId 
-          ? { 
-              ...conv, 
-              messages: [...conv.messages, assistantMessage],
-              updated_at: new Date()
-            }
-          : conv
+        conv.id === currentConvId ? finalConversation : conv
       ));
+
+      // Save final conversation to database
+      await conversationService.saveConversation(finalConversation);
+
     } catch (error) {
-      console.error('Error generating AI response:', error);
+      console.error('Error sending message:', error);
       
       const errorMessage: ChatMessage = {
         id: uuidv4(),
@@ -106,7 +166,7 @@ const ProdMentor = ({ userProfile, onLogout }: ProdMentorProps) => {
       };
 
       setConversations(prev => prev.map(conv => 
-        conv.id === currentConvId 
+        conv.id === activeConversationId 
           ? { 
               ...conv, 
               messages: [...conv.messages, errorMessage],
@@ -114,26 +174,42 @@ const ProdMentor = ({ userProfile, onLogout }: ProdMentorProps) => {
             }
           : conv
       ));
+
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleFeedback = (messageId: string, helpful: boolean, feedback?: string) => {
+  const handleFeedback = async (messageId: string, helpful: boolean, feedback?: string) => {
     if (!activeConversationId) return;
 
+    const updatedConversation = conversations.find(c => c.id === activeConversationId);
+    if (!updatedConversation) return;
+
+    const conversationWithFeedback = {
+      ...updatedConversation,
+      messages: updatedConversation.messages.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, helpful, feedback }
+          : msg
+      ),
+      updated_at: new Date()
+    };
+
     setConversations(prev => prev.map(conv => 
-      conv.id === activeConversationId 
-        ? {
-            ...conv,
-            messages: conv.messages.map(msg => 
-              msg.id === messageId 
-                ? { ...msg, helpful, feedback }
-                : msg
-            )
-          }
-        : conv
+      conv.id === activeConversationId ? conversationWithFeedback : conv
     ));
+
+    try {
+      await conversationService.saveConversation(conversationWithFeedback);
+    } catch (error) {
+      console.error('Error saving feedback:', error);
+    }
 
     // Log feedback for improvement
     console.log('Feedback received:', { messageId, helpful, feedback });
@@ -165,12 +241,16 @@ const ProdMentor = ({ userProfile, onLogout }: ProdMentorProps) => {
     URL.revokeObjectURL(url);
   };
 
-  // Initialize with first conversation
-  useEffect(() => {
-    if (conversations.length === 0) {
-      createNewConversation();
-    }
-  }, []);
+  if (isLoadingConversations) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading conversations...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -194,7 +274,15 @@ const ProdMentor = ({ userProfile, onLogout }: ProdMentorProps) => {
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-gray-500">Select a conversation to get started</p>
+            <div className="text-center">
+              <p className="text-gray-500 mb-4">No conversations yet</p>
+              <button
+                onClick={handleNewConversation}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Start Your First Conversation
+              </button>
+            </div>
           </div>
         )}
       </div>

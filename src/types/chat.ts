@@ -5,11 +5,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   frameworks?: string[];
-  expertQuote?: {
-    expert: string;
-    quote: string;
-    source?: string;
-  };
+  expertQuote?: ExpertQuote;
   helpful?: boolean;
   feedback?: string;
 }
@@ -34,4 +30,13 @@ export interface PMFramework {
   description: string;
   whenToUse: string;
   expertQuotes: ExpertQuote[];
+}
+
+export interface DatabaseConversation {
+  id: string;
+  user_id: string;
+  title: string;
+  messages: any[];
+  created_at: string;
+  updated_at: string;
 }
