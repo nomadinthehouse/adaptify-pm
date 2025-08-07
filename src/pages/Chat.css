@@ -1,0 +1,67 @@
+.chat-bubble {
+  max-width: 75%;
+  padding: 0.5rem 1rem;
+  border-radius: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.chat-bubble.user {
+  background-color: #3b82f6;
+  color: white;
+  margin-left: auto;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.chat-bubble.assistant {
+  background-color: #e5e7eb;
+  color: #1f2937;
+  margin-right: auto;
+  border-bottom-left-radius: 0.25rem;
+}
+
+.chat-bubble h1,
+.chat-bubble h2,
+.chat-bubble h3,
+.chat-bubble h4,
+.chat-bubble h5,
+.chat-bubble h6 {
+  margin-top: 0.5em;
+  margin-bottom: 0.25em;
+  font-weight: 600;
+}
+
+.chat-bubble p {
+  margin-bottom: 0.5em;
+}
+
+.chat-bubble ul,
+.chat-bubble ol {
+  margin-left: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.chat-bubble li {
+  margin-bottom: 0.125em;
+}
+
+.chat-bubble pre {
+  background-color: #f3f4f6;
+  padding: 0.5em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+}
+
+.chat-bubble code {
+  font-family: 'Courier New', Courier, monospace;
+  background-color: #f3f4f6;
+  padding: 0.2em 0.4em;
+  border-radius: 0.25em;
+}
+
+.chat-bubble blockquote {
+  border-left: 4px solid #d1d5db;
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+  color: #4b5563;
+}
